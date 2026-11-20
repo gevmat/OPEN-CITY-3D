@@ -26,7 +26,7 @@ jobs:
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools' 'cmake;3.10.2.4988404' 'ndk;23.2.8568313'
+          "$SDKMANAGER" 'platforms;android-34' 'build-tools;34.0.0' 'platform-tools' 'cmake;3.10.2.4988404' 'ndk;23.2.8568313'
       - name: Create debug keystore
         run: keytool -genkeypair -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Android Debug,O=Android,C=US'
       - name: Export APK
@@ -42,7 +42,11 @@ jobs:
           cp "$HOME/.config/godot/editor_settings-4.3.tres" "$HOME/.config/godot/editor_settings-4.tres"
           ls -la "$HOME/.config/godot/"
           ./Godot_v4.3-stable_linux.x86_64 --headless --path . --editor --quit
-          cat "$HOME/.config/godot/editor_settings-4.3.tres" | tail -n 12
+          grep -E 'export/android/(android_sdk_path|java_sdk_path)' "$HOME/.config/godot/editor_settings-4.3.tres" || true
+          ls "$ANDROID_HOME/build-tools/"
+          sed -i '/^export\/android\/android_sdk_path = /d; /^export\/android\/java_sdk_path = /d' "$HOME/.config/godot/editor_settings-4.3.tres"
+          printf '\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_HOME" "$JAVA_HOME" >> "$HOME/.config/godot/editor_settings-4.3.tres"
+          grep -E 'export/android/(android_sdk_path|java_sdk_path)' "$HOME/.config/godot/editor_settings-4.3.tres"
           ./Godot_v4.3-stable_linux.x86_64 --headless --path . --export-debug Android build/open-city-3d.apk
       - uses: actions/upload-artifact@v4
         with:
