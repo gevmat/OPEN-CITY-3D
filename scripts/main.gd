@@ -45,33 +45,77 @@ func _box(parent: Node3D, pos: Vector3, size: Vector3, tint: Color, collision :=
 		body.add_child(col)
 	return body
 
+func _cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, tint: Color) -> void:
+	var n := MeshInstance3D.new()
+	var m := CylinderMesh.new()
+	m.top_radius = radius
+	m.bottom_radius = radius
+	m.height = height
+	n.mesh = m
+	var material := StandardMaterial3D.new()
+	material.albedo_color = tint
+	n.material_override = material
+	parent.add_child(n)
+	n.position = pos
+
 func _build_world() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-55, -30, 0)
-	sun.light_energy = 1.5
+	sun.light_energy = 1.4
+	sun.shadow_enabled = true
 	add_child(sun)
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.55, 0.75, 0.94)
+	e.background_color = Color(0.55, 0.73, 0.91)
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.8, 0.85, 0.95)
+	e.ambient_light_color = Color(0.78, 0.83, 0.91)
 	env.environment = e
 	add_child(env)
-	_box(self, Vector3(0,-0.6,0), Vector3(240,1,240), Color(0.23,0.45,0.27))
-	for i in range(-2,3):
-		_box(self,Vector3(i*35,0.01,0),Vector3(13,0.12,220),Color(0.18,0.19,0.22),false)
-		_box(self,Vector3(0,0.02,i*35),Vector3(220,0.12,13),Color(0.18,0.19,0.22),false)
+	_box(self, Vector3(0,-0.65,0), Vector3(310,1.2,310), Color(0.29,0.43,0.29))
+	var asphalt := Color(0.14,0.15,0.17)
+	var pavement := Color(0.58,0.58,0.56)
+	for i in range(-3,4):
+		var road := float(i)*35.0
+		_box(self,Vector3(road,0.02,0),Vector3(13,0.10,280),asphalt,false)
+		_box(self,Vector3(0,0.025,road),Vector3(280,0.10,13),asphalt,false)
+		for side in [-1.0,1.0]:
+			_box(self,Vector3(road+side*7.9,0.07,0),Vector3(2.8,0.12,280),pavement,false)
+			_box(self,Vector3(0,0.075,road+side*7.9),Vector3(280,0.12,2.8),pavement,false)
+		for k in range(-13,14):
+			var v := float(k)*10.0
+			if absf(fmod(absf(v),35.0)) < 9.0 or absf(fmod(absf(v),35.0)-35.0) < 9.0:
+				continue
+			_box(self,Vector3(road,0.09,v),Vector3(0.16,0.02,4.0),Color(0.88,0.84,0.62),false)
+			_box(self,Vector3(v,0.09,road),Vector3(4.0,0.02,0.16),Color(0.88,0.84,0.62),false)
+	for i in range(-3,3):
+		for j in range(-3,3):
+			var px := float(i)*35.0+17.5
+			var pz := float(j)*35.0+17.5
+			var height := 10.0+float(posmod(i*17+j*11,6))*3.0
+			var wall := Color(0.42+0.045*float(posmod(i,4)),0.43+0.025*float(posmod(j,3)),0.46)
+			_box(self,Vector3(px,height*0.5,pz),Vector3(19,height,19),wall)
+			_box(self,Vector3(px,height+0.16,pz),Vector3(20,0.32,20),Color(0.23,0.25,0.28),false)
+			for floor_i in range(1,int(height/2.9)):
+				for window_i in range(-2,3):
+					var xx := px+float(window_i)*3.1
+					var yy := float(floor_i)*2.9
+					_box(self,Vector3(xx,yy,pz-9.55),Vector3(1.8,1.65,0.09),Color(0.17,0.28,0.35),false)
+					_box(self,Vector3(xx,yy,pz+9.55),Vector3(1.8,1.65,0.09),Color(0.17,0.28,0.35),false)
+					_box(self,Vector3(px-9.55,yy,pz+float(window_i)*3.1),Vector3(0.09,1.65,1.8),Color(0.17,0.28,0.35),false)
+			_box(self,Vector3(px,1.3,pz-9.62),Vector3(2.1,2.6,0.11),Color(0.22,0.18,0.16),false)
+			for side in [-1.0,1.0]:
+				var tx := px+side*12.0
+				var tz := pz+side*11.5
+				_cylinder(self,Vector3(tx,1.5,tz),0.23,3.0,Color(0.28,0.19,0.12))
+				_cylinder(self,Vector3(tx,4.2,tz),1.55,3.2,Color(0.12,0.34,0.15))
 	for i in range(-3,4):
 		for j in range(-3,4):
-			if abs(i) < 1 and abs(j) < 1: continue
-			var px := i*25.0+12.0
-			var pz := j*25.0+12.0
-			if fmod(abs(px),35.0)<8.0 or fmod(abs(pz),35.0)<8.0: continue
-			var height := 7.0+float(posmod(i*13+j*7,7))*2.7
-			_box(self,Vector3(px,height/2,pz),Vector3(12,height,12),Color(0.45+0.04*float(posmod(i,3)),0.45,0.50))
-			for floor_i in range(1,int(height/3.0)):
-				_box(self,Vector3(px,floor_i*3.0,pz-6.03),Vector3(8,1.1,0.06),Color(0.15,0.33,0.46),false)
+			var x := float(i)*35.0
+			var z := float(j)*35.0
+			for k in range(-2,3):
+				_box(self,Vector3(x+float(k)*1.8,0.10,z-8.0),Vector3(1.15,0.025,3.0),Color(0.86,0.85,0.79),false)
+				_box(self,Vector3(x-8.0,0.10,z+float(k)*1.8),Vector3(3.0,0.025,1.15),Color(0.86,0.85,0.79),false)
 
 func _build_player() -> void:
 	hero = CharacterBody3D.new()
