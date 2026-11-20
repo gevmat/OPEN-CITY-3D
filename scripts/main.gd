@@ -12,6 +12,12 @@ var jump_requested := false
 var interact_requested := false
 var car_heading := 0.0
 var hud: Label
+var camera_yaw := 0.0
+var camera_pitch := 0.30
+var camera_distance := 10.0
+var look_touch_id := -1
+var touch_last := Vector2.ZERO
+var car_velocity := 0.0
 
 func _ready() -> void:
 	_build_world()
@@ -141,6 +147,23 @@ func _press_move(direction: Vector2) -> void:
 func _release_move(direction: Vector2) -> void:
 	steer -= direction
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed and event.position.x > get_viewport().get_visible_rect().size.x * 0.38:
+			if look_touch_id == -1:
+				look_touch_id = event.index
+				touch_last = event.position
+		elif not event.pressed and event.index == look_touch_id:
+			look_touch_id = -1
+	elif event is InputEventScreenDrag and event.index == look_touch_id:
+		var diff: Vector2 = event.position - touch_last
+		touch_last = event.position
+		camera_yaw -= diff.x * 0.006
+		camera_pitch = clamp(camera_pitch + diff.y * 0.004, -0.15, 0.85)
+	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		camera_yaw -= event.relative.x * 0.006
+		camera_pitch = clamp(camera_pitch + event.relative.y * 0.004, -0.15, 0.85)
+
 func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("interact") or interact_requested:
 		interact_requested = false
@@ -154,16 +177,24 @@ func _physics_process(delta: float) -> void:
 	direction.y += Input.get_action_strength("move_back") - Input.get_action_strength("move_forward")
 	direction = direction.limit_length(1.0)
 	if in_car:
-		car_heading -= direction.x * delta * 1.8
+		var target_speed := -direction.y * CAR_SPEED
+		car_velocity = move_toward(car_velocity, target_speed, delta * (14.0 if abs(target_speed) > 0.1 else 24.0))
+		var steering_factor := clamp(abs(car_velocity) / 5.0, 0.0, 1.0)
+		car_heading -= direction.x * delta * 1.65 * steering_factor * (1.0 if car_velocity >= 0.0 else -1.0)
 		car.rotation.y = car_heading
 		var forward := Vector3(-sin(car_heading),0,-cos(car_heading))
-		car.velocity = forward * -direction.y * CAR_SPEED
+		car.velocity = forward * car_velocity
 		car.move_and_slide()
 		hero.visible = false
 	else:
 		hero.visible = true
-		hero.velocity.x = direction.x * SPEED
-		hero.velocity.z = direction.y * SPEED
+		var forward := Vector3(-sin(camera_yaw), 0, -cos(camera_yaw))
+		var right := Vector3(cos(camera_yaw), 0, -sin(camera_yaw))
+		var movement := (right * direction.x - forward * direction.y).limit_length(1.0)
+		hero.velocity.x = movement.x * SPEED
+		hero.velocity.z = movement.z * SPEED
+		if movement.length() > 0.1:
+			hero.rotation.y = lerp_angle(hero.rotation.y, atan2(-movement.x, -movement.z), delta * 10.0)
 		if not hero.is_on_floor():
 			hero.velocity.y -= 18.0*delta
 		elif jump_requested or Input.is_action_just_pressed("ui_accept"):
@@ -171,7 +202,11 @@ func _physics_process(delta: float) -> void:
 		hero.move_and_slide()
 	jump_requested = false
 	var target := car.global_position if in_car else hero.global_position
-	var desired := target + Vector3(0,6,11)
+	if in_car and look_touch_id == -1:
+		camera_yaw = lerp_angle(camera_yaw, car_heading, delta * 0.9)
+	var horizontal := cos(camera_pitch) * camera_distance
+	var offset := Vector3(sin(camera_yaw) * horizontal, 3.0 + sin(camera_pitch) * camera_distance, cos(camera_yaw) * horizontal)
+	var desired := target + offset
 	camera.global_position = camera.global_position.lerp(desired, min(1.0,delta*5.0))
-	camera.look_at(target+Vector3(0,1,0))
-	hud.text = "OPEN CITY 3D  |  " + ("DRIVING" if in_car else "ON FOOT") + "  |  ENTER / EXIT"
+	camera.look_at(target+Vector3(0,1.2,0))
+	hud.text = "OPEN CITY 3D  |  " + ("DRIVING" if in_car else "ON FOOT") + "  |  SWIPE RIGHT TO LOOK"
