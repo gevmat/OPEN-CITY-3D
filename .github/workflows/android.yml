@@ -37,7 +37,10 @@ jobs:
         run: |
           mkdir -p build
           ./Godot_v4.3-stable_linux.x86_64 --headless --path . --editor --quit
-          python3 -c 'import os,pathlib; p=pathlib.Path.home()/".config/godot/editor_settings-4.tres"; s=p.read_text(); s=s.replace("[resource]", "[resource]\nexport/android/android_sdk_path = \""+os.environ["ANDROID_HOME"]+"\"\nexport/android/java_sdk_path = \""+os.environ["JAVA_HOME"]+"\"",1); p.write_text(s)'
+          mkdir -p "$HOME/.config/godot"
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_HOME" "$JAVA_HOME" > "$HOME/.config/godot/editor_settings-4.3.tres"
+          cp "$HOME/.config/godot/editor_settings-4.3.tres" "$HOME/.config/godot/editor_settings-4.tres"
+          ls -la "$HOME/.config/godot/"
           ./Godot_v4.3-stable_linux.x86_64 --headless --path . --export-debug Android build/open-city-3d.apk
       - uses: actions/upload-artifact@v4
         with:
