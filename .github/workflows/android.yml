@@ -37,6 +37,34 @@ jobs:
         run: |
           mkdir -p build
           ./Godot_v4.3-stable_linux.x86_64 --headless --path . --editor --quit
+          python3 - <<'PY'
+          from pathlib import Path
+          import os, re
+          p = Path.home()/'.config/godot/editor_settings-4.tres'
+          assert p.exists(), str(p)
+          s = p.read_text()
+          values = {'export/android/android_sdk_path': os.environ['ANDROID_HOME'], 'export/android/java_sdk_path': os.environ['JAVA_HOME']}
+          for key, value in values.items():
+              line = key + ' = "' + value + '"'
+              if re.search(r'(?m)^' + re.escape(key) + r' = .*
+          ./Godot_v4.3-stable_linux.x86_64 --headless --path . --export-debug 'Android' build/open-city-3d.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Open-City-3D-APK
+          path: build/open-city-3d.apk
+, s):
+                  s = re.sub(r'(?m)^' + re.escape(key) + r' = .*
+          ./Godot_v4.3-stable_linux.x86_64 --headless --path . --export-debug 'Android' build/open-city-3d.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Open-City-3D-APK
+          path: build/open-city-3d.apk
+, lambda _: line, s)
+              else:
+                  s = s.replace('[resource]', '[resource]\n' + line, 1)
+          p.write_text(s)
+          print('Android paths configured')
+          PY
           ./Godot_v4.3-stable_linux.x86_64 --headless --path . --export-debug 'Android' build/open-city-3d.apk
       - uses: actions/upload-artifact@v4
         with:
